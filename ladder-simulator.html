@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محاكي منطق السلم التفاعلي</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #fff;
+            margin: 0;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+        }
+        h2 {
+            text-align: center;
+            color: #38bdf8;
+            margin-bottom: 1.5rem;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #334155;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+        }
+        .btn {
+            background: #22c55e;
+            color: white;
+            border: none;
+            padding: 0.7rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn:disabled {
+            background: #64748b;
+            cursor: not-allowed;
+        }
+        .status-panel {
+            font-size: 1.1rem;
+        }
+        .cylinder-container {
+            margin-bottom: 1.5rem;
+            background: #111827;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .cylinder-label {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+        }
+        .cylinder-track {
+            background: #475569;
+            height: 30px;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+        }
+        .piston {
+            background: #38bdf8;
+            height: 100%;
+            width: 30%;
+            position: absolute;
+            right: 0;
+            transition: right 1s linear;
+            border-left: 8px solid #f43f5e;
+        }
+        .active-step {
+            background: #e11d48 !important;
+            box-shadow: 0 0 10px #e11d48;
+        }
+        .ladder-view {
+            background: #111827;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 1rem;
+            color: #a7f3d0;
+            line-height: 1.6;
+            text-align: right;
+        }
+        .highlight {
+            color: #f43f5e;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>محاكي الـ Ladder Diagram التفاعلي (A+ B+ B- C+ C- A-)</h2>
+        
+        <div class="controls">
+            <button class="btn" id="startBtn" onclick="startSequence()">اضغط لبدء التشغيل (Start)</button>
+            <div class="status-panel">
+                <span>العداد الحقيقي: <span id="cycleCount" class="highlight">0</span> / 3</span> | 
+                <span>حالة النظام: <span id="sysStatus" style="color:#22c55e;">جاهز</span></span>
+            </div>
+        </div>
+
+        <div class="cylinder-container">
+            <div class="cylinder-label">الأسطوانة Cylinder A</div>
+            <div class="cylinder-track"><div id="pistonA" class="piston"></div></div>
+        </div>
+
+        <div class="cylinder-container">
+            <div class="cylinder-label">الأسطوانة Cylinder B (تحتوي على مؤقت 3 ثوانٍ عند الخروج)</div>
+            <div class="cylinder-track"><div id="pistonB" class="piston"></div></div>
+        </div>
+
+        <div class="cylinder-container">
+            <div class="cylinder-label">الأسطوانة Cylinder C</div>
+            <div class="cylinder-track"><div id="pistonC" class="piston"></div></div>
+        </div>
+
+        <h3>مراقبة منطق السلم (Ladder Logic Monitor):</h3>
+        <div class="ladder-view" id="ladderLog">
+            [RUNG 1] --| Start |--( System Run ) <br>
+            [RUNG 2] --| Current Action |---> <span id="currentAction" class="highlight">في انتظار الضغط على Start</span>
+        </div>
+    </div>
+
+    <script>
+        let currentCycle = 0;
+        const maxCycles = 3;
+
+        function delay(ms) { 
+            return new Promise(resolve => setTimeout(resolve, ms)); 
+        }
+
+        async function startSequence() {
+            const pistonA = document.getElementById('pistonA');
+            const pistonB = document.getElementById('pistonB');
+            const pistonC = document.getElementById('pistonC');
+            const startBtn = document.getElementById('startBtn');
+            const cycleCountText = document.getElementById('cycleCount');
+            const sysStatusText = document.getElementById('sysStatus');
+            const currentActionText = document.getElementById('currentAction');
+
+            startBtn.disabled = true;
+            currentCycle = 0;
+            cycleCountText.innerText = currentCycle;
+            sysStatusText.innerText = "يعمل تلقائياً";
+            sysStatusText.style.color = "#38bdf8";
+
+            while (currentCycle < maxCycles) {
+                // A+
+                currentActionText.innerText = "الخطوة 1: خروج الأسطوانة (A+)";
+                pistonA.style.right = "70%"; 
+                await delay(1000);
+
+                // B+
+                currentActionText.innerText = "الخطوة 2: خروج الأسطوانة (B+)";
+                pistonB.style.right = "70%";
+                await delay(1000);
+
+                // Timer T0 (3 Seconds)
+                currentActionText.innerText = "تفعيل المؤقت السحابي TON: انتهاء شوط B (تأخير 3 ثوانٍ)...";
+                pistonB.classList.add('active-step');
+                await delay(3000);
+                pistonB.classList.remove('active-step');
+
+                // B-
+                currentActionText.innerText = "الخطوة 3: رجوع الأسطوانة (B-)";
+                pistonB.style.right = "0%";
+                await delay(1000);
+
+                // C+
+                currentActionText.innerText = "الخطوة 4: خروج الأسطوانة (C+)";
+                pistonC.style.right = "70%";
+                await delay(1000);
+
+                // C-
+                currentActionText.innerText = "الخطوة 5: رجوع الأسطوانة (C-)";
+                pistonC.style.right = "0%";
+                await delay(1000);
+
+                // A-
+                currentActionText.innerText = "الخطوة 6: رجوع الأسطوانة الأخيرة (A-)";
+                pistonA.style.right = "0%";
+                await delay(1000);
+
+                // زيادة العداد
+                currentCycle++;
+                cycleCountText.innerText = currentCycle;
+            }
+
+            // نهاية العد
+            currentActionText.innerText = "اكتمل العداد (3 مرات) - تم فصل النظام تلقائياً عبر الـ Ladder Logic.";
+            sysStatusText.innerText = "متوقف (اكتمل الشوط)";
+            sysStatusText.style.color = "#f43f5e";
+            startBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
